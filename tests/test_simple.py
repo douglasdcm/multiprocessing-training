@@ -1,6 +1,105 @@
+# Reference https://superfastpython.com/multiprocessing-in-python/
+
 import multiprocessing
 import time
 
+
+def test_barrier():
+    def task(barrier):
+        print("task")
+        time.sleep(2)
+        barrier.wait(timeout=10)
+
+    # need to configure the barrier to wait the main process and the 10 subprocesses
+    barrier = multiprocessing.Barrier(10 + 1)
+    processes = [multiprocessing.Process(target=task, args=(barrier,)) for _ in range(10)]
+
+    for process in processes:
+        process.start()
+
+    barrier.wait()
+    print("main finished")
+
+def test_event():
+    def task(event):
+        # 
+        print("task waiting")
+        event.wait()
+        print(multiprocessing.current_process().name)
+
+    def other_task():
+        time.sleep(1)
+        print("other task")
+
+    event = multiprocessing.Event()
+    processes = [multiprocessing.Process(target=task, args=(event,)) for _ in range(10)]
+
+    for process in processes:
+        # all processes are started, but stop waiting the event.set()
+        process.start()
+
+    for _ in range(3):
+        # is executed while the task wait 
+        other_process = multiprocessing.Process(target=other_task)
+        other_process.start()
+        other_process.join()
+
+    time.sleep(3)
+    # release the task to run
+    event.set()
+
+    for process in processes:
+        process.join()
+
+    print("main finished")
+
+    # Output
+    # task waiting
+    # task waiting
+    # task waiting
+    # task waiting
+    # task waiting
+    # task waiting
+    # task waiting
+    # task waiting
+    # task waiting
+    # task waiting
+    # other task
+    # other task
+    # other task
+    # Process-3
+    # Process-2
+    # Process-1
+    # Process-6
+    # Process-4
+    # Process-5
+    # Process-10
+    # Process-9
+    # Process-7
+    # Process-8
+    # main finished
+
+
+
+def test_semaphore():
+    # Runs 3 processes each time
+    # if put a "with semaphore" before the creation of the processes
+    # the main process is counted in semaphore
+    def task(semaphore):
+        with semaphore:
+            time.sleep(1)
+            print(multiprocessing.current_process().name)
+
+    semaphore = multiprocessing.Semaphore(3)
+    processes = [multiprocessing.Process(target=task, args=(semaphore,)) for _ in range(10)]
+
+    for process in processes:
+        process.start()
+
+    for process in processes:
+        process.join()
+
+    print("main finished")
 
 def test_conditions_with_task_generating_many_processes():
     # if MY_NUM bigger than RANGE, the subprocesses does not notify the main process
